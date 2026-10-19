@@ -1,0 +1,398 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contrôle de consommation - Denden</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+:root {
+  --bg: #f3f6fb;
+  --blue: #173b68;
+  --red: #d93645;
+  --green: #16835e;
+  --text: #24334a;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+header {
+  background: linear-gradient(120deg, #102b50, #2363a0);
+  color: white;
+  padding: 32px 20px;
+}
+header h1 { margin: 0 0 10px; }
+header p { margin: 0; color: #e0ebfa; }
+main { max-width: 1200px; margin: auto; padding: 24px; }
+h2 { font-size: 20px; margin-top: 30px; }
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 16px;
+}
+.card, .panel {
+  background: white;
+  padding: 20px;
+  border-radius: 14px;
+  box-shadow: 0 4px 16px #19365b0d;
+}
+.card small { color: #687990; }
+.number { font-size: 30px; font-weight: bold; margin: 12px 0; }
+.red { color: var(--red); }
+.blue { color: var(--blue); }
+.green { color: var(--green); }
+.notice {
+  margin-top: 20px;
+  padding: 18px;
+  border-left: 5px solid #e1a126;
+  background: #fff8e8;
+  border-radius: 8px;
+  line-height: 1.6;
+}
+.chart-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 18px;
+  margin-top: 18px;
+}
+.chart-box { height: 300px; }
+.table-wrap { overflow-x: auto; }
+table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 560px;
+}
+th, td {
+  border-bottom: 1px solid #e4eaf2;
+  padding: 13px;
+  text-align: left;
+}
+th { background: #edf3fa; }
+tr.flag { background: #fff0f0; }
+tr.flag td:first-child { font-weight: bold; }
+.tag {
+  padding: 5px 9px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: bold;
+  background: #e9eef5;
+}
+.tag.alert { background: #ffe0e2; color: #a81f30; }
+.tag.ok { background: #d9f5e9; color: #126747; }
+.actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 18px 0;
+}
+button {
+  padding: 11px 16px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--blue);
+  color: white;
+  cursor: pointer;
+  font-weight: bold;
+}
+button:hover { opacity: .85; }
+footer {
+  text-align: center;
+  padding: 25px;
+  color: #687990;
+  font-size: 13px;
+}
+@media(max-width: 600px) {
+  main { padding: 14px; }
+  header { padding: 25px 16px; }
+  .number { font-size: 25px; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Tableau de contrôle des consommations</h1>
+  <p>Oued Jil – Denden | Comparaison juillet / août</p>
+</header>
+
+<main>
+  <h2>Vue générale</h2>
+  <section class="cards">
+    <div class="card">
+      <small>Compteur Denden — juillet</small>
+      <div class="number blue" id="meterJuly">2 000</div>
+      <small>Valeur du tableau</small>
+    </div>
+    <div class="card">
+      <small>Compteur Denden — août</small>
+      <div class="number blue" id="meterAugust">2 000</div>
+      <small>Valeur du tableau</small>
+    </div>
+    <div class="card">
+      <small>Écart des lignes détaillées — juillet</small>
+      <div class="number red" id="gapJuly">+100</div>
+      <small>Détail moins compteur général</small>
+    </div>
+    <div class="card">
+      <small>Écart des lignes détaillées — août</small>
+      <div class="number red" id="gapAugust">0</div>
+      <small>Détail moins compteur général</small>
+    </div>
+  </section>
+
+  <div class="notice" id="mainNotice">
+    <strong>Point de contrôle :</strong>
+    les sommes des lignes détaillées doivent être rapprochées
+    des totaux déclarés et des relevés du compteur général.
+  </div>
+
+  <h2>Comparaison graphique</h2>
+  <div class="chart-grid">
+    <div class="panel">
+      <h3>Consommation par logement</h3>
+      <div class="chart-box"><canvas id="houseChart"></canvas></div>
+    </div>
+    <div class="panel">
+      <h3>Totaux et compteur général</h3>
+      <div class="chart-box"><canvas id="totalChart"></canvas></div>
+    </div>
+  </div>
+
+  <h2>Anomalies à vérifier</h2>
+  <div class="panel">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Point contrôlé</th>
+            <th>Juillet</th>
+            <th>Août</th>
+            <th>Constat</th>
+          </tr>
+        </thead>
+        <tbody id="alertsTable"></tbody>
+      </table>
+    </div>
+    <p style="font-size:13px;color:#687990">
+      Une anomalie est un signal de contrôle, pas une preuve de fraude.
+    </p>
+  </div>
+
+  <h2>Données détaillées</h2>
+  <div class="panel">
+    <div class="actions">
+      <button onclick="downloadCSV()">Télécharger les données CSV</button>
+      <button onclick="window.print()">Imprimer le rapport</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Maison / Société</th>
+            <th>Juillet</th>
+            <th>Août</th>
+            <th>Variation</th>
+          </tr>
+        </thead>
+        <tbody id="dataTable"></tbody>
+        <tfoot id="dataFooter"></tfoot>
+      </table>
+    </div>
+  </div>
+
+  <h2>Méthode de contrôle</h2>
+  <div class="panel">
+    <ol>
+      <li>Vérifier les index des compteurs au début et à la fin de chaque mois.</li>
+      <li>Recalculer la somme des logements et des sociétés.</li>
+      <li>Comparer cette somme avec le compteur général Denden.</li>
+      <li>Examiner les changements inhabituels, les erreurs de saisie et les fuites éventuelles.</li>
+      <li>Ne conclure à une fraude qu'après vérification des justificatifs et des relevés.</li>
+    </ol>
+  </div>
+</main>
+
+<footer>
+  Rapport de contrôle — Oued Jil / Denden
+</footer>
+
+<script>
+// Données transcrites du tableau fourni.
+// Les unités ne sont pas précisées dans le document source.
+const records = [
+  {name:"Maison 1", july:150, august:150},
+  {name:"Maison 2", july:100, august:100},
+  {name:"Maison 3", july:100, august:100},
+  {name:"Maison 4", july:100, august:100},
+  {name:"Maison 5", july:150, august:150},
+  {name:"Maison 6", july:100, august:100},
+  {name:"Maison 7", july:100, august:100},
+  {name:"Maison 8", july:100, august:100},
+  {name:"Maison 9", july:100, august:0},
+  {name:"Maison 10", july:150, august:150},
+  {name:"Office National de l'artisanat", july:950, august:950}
+];
+
+const declared = {july:2000, august:1900};
+const meter = {july:2000, august:2000};
+
+const sum = key => records.reduce((total, row) => total + row[key], 0);
+const detailed = {july:sum("july"), august:sum("august")};
+const fmt = n => n.toLocaleString("fr-FR");
+const gap = {
+  july: detailed.july - meter.july,
+  august: detailed.august - meter.august
+};
+
+document.getElementById("meterJuly").textContent = fmt(meter.july);
+document.getElementById("meterAugust").textContent = fmt(meter.august);
+document.getElementById("gapJuly").textContent =
+  (gap.july > 0 ? "+" : "") + fmt(gap.july);
+document.getElementById("gapAugust").textContent =
+  (gap.august > 0 ? "+" : "") + fmt(gap.august);
+
+document.getElementById("mainNotice").innerHTML =
+  `<strong>Écart de rapprochement :</strong>
+  la somme des lignes détaillées est de ${fmt(detailed.july)} en juillet
+  et ${fmt(detailed.august)} en août. Le compteur général indique
+  ${fmt(meter.july)} et ${fmt(meter.august)} respectivement.
+  Il existe donc un écart de ${fmt(gap.july)} en juillet et
+  ${fmt(gap.august)} en août entre le détail et le compteur.
+  Les valeurs doivent être vérifiées sur les relevés originaux.`;
+
+const tbody = document.getElementById("dataTable");
+records.forEach(r => {
+  const diff = r.august - r.july;
+  const tr = document.createElement("tr");
+  if (r.name === "Maison 9") tr.className = "flag";
+  tr.innerHTML = `
+    <td>${r.name}</td>
+    <td>${fmt(r.july)}</td>
+    <td>${fmt(r.august)}</td>
+    <td>${diff > 0 ? "+" : ""}${fmt(diff)}</td>`;
+  tbody.appendChild(tr);
+});
+
+document.getElementById("dataFooter").innerHTML = `
+<tr><th>Total recalculé des lignes</th>
+<th>${fmt(detailed.july)}</th>
+<th>${fmt(detailed.august)}</th><th>—</th></tr>
+<tr><td>Total inscrit dans le document</td>
+<td>${fmt(declared.july)}</td>
+<td>${fmt(declared.august)}</td><td>—</td></tr>
+<tr><td>Compteur général Denden</td>
+<td>${fmt(meter.july)}</td>
+<td>${fmt(meter.august)}</td><td>—</td></tr>`;
+
+const alerts = [
+  {
+    name:"Maison 9",
+    july:100, august:0,
+    text:"Baisse de 100 à vérifier"
+  },
+  {
+    name:"Somme des lignes — juillet",
+    july:detailed.july, august:"—",
+    text:"Écart de +100 par rapport au compteur"
+  },
+  {
+    name:"Total inscrit — août",
+    july:"—", august:declared.august,
+    text:"Inférieur de 100 à la somme détaillée"
+  },
+  {
+    name:"Somme des lignes — août",
+    july:"—", august:detailed.august,
+    text:"Égale au compteur général"
+  }
+];
+
+const alertsBody = document.getElementById("alertsTable");
+alerts.forEach(a => {
+  const tr = document.createElement("tr");
+  tr.className = "flag";
+  tr.innerHTML = `
+    <td>${a.name}</td>
+    <td>${typeof a.july === "number" ? fmt(a.july) : a.july}</td>
+    <td>${typeof a.august === "number" ? fmt(a.august) : a.august}</td>
+    <td><span class="tag alert">${a.text}</span></td>`;
+  alertsBody.appendChild(tr);
+});
+
+new Chart(document.getElementById("houseChart"), {
+  type:"bar",
+  data:{
+    labels:records.filter(r => r.name.startsWith("Maison")).map(r => r.name),
+    datasets:[
+      {
+        label:"Juillet",
+        data:records.filter(r => r.name.startsWith("Maison")).map(r => r.july),
+        backgroundColor:"#3979c3"
+      },
+      {
+        label:"Août",
+        data:records.filter(r => r.name.startsWith("Maison")).map(r => r.august),
+        backgroundColor:"#e45b66"
+      }
+    ]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    scales:{y:{beginAtZero:true}},
+    plugins:{legend:{position:"bottom"}}
+  }
+});
+
+new Chart(document.getElementById("totalChart"), {
+  type:"bar",
+  data:{
+    labels:[
+      "Détail juillet","Total inscrit juillet","Compteur juillet",
+      "Détail août","Total inscrit août","Compteur août"
+    ],
+    datasets:[{
+      label:"Consommation",
+      data:[
+        detailed.july, declared.july, meter.july,
+        detailed.august, declared.august, meter.august
+      ],
+      backgroundColor:[
+        "#3979c3","#e5a13a","#16835e",
+        "#3979c3","#e5a13a","#16835e"
+      ]
+    }]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    scales:{y:{beginAtZero:true}},
+    plugins:{legend:{display:false}}
+  }
+});
+
+function downloadCSV() {
+  const rows = [
+    ["Maison / Société","Juillet","Août"],
+    ...records.map(r => [r.name,r.july,r.august]),
+    ["Total recalculé",detailed.july,detailed.august],
+    ["Total inscrit",declared.july,declared.august],
+    ["Compteur Denden",meter.july,meter.august]
+  ];
+  const csv = "\uFEFF" + rows.map(row =>
+    row.map(value => `"${String(value).replace(/"/g,'""')}"`).join(";")
+  ).join("\r\n");
+  const blob = new Blob([csv], {type:"text/csv;charset=utf-8;"});
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "controle-consommation-denden.csv";
+  link.click();
+  URL.revokeObjectURL(url);
+}
+</script>
+</body>
+</html>
