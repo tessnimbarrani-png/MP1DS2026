@@ -1,69 +1,102 @@
-import pandas as pd
 
-# 1. Données du tableau
-data = {
+import pandas as pd
+from IPython.display import display
+
+# 1. Données
+df = pd.DataFrame({
     "Zone": [
         "Maison 1", "Maison 2", "Maison 3", "Maison 4",
         "Maison 5", "Maison 6", "Maison 7", "Maison 8",
         "Maison 9", "Maison 10",
         "Office National de l'Artisanat"
     ],
-    "Juillet": [150, 100, 100, 100, 150, 100, 100, 100, 100, 150, 950],
-    "Aout":    [150, 100, 100, 100, 150, 100, 100, 100,   0, 150, 950]
-}
+    "Consommation Juillet": [
+        150, 100, 100, 100, 150, 100, 100, 100, 100, 150, 950
+    ],
+    "Consommation Aout": [
+        150, 100, 100, 100, 150, 100, 100, 100, 0, 150, 950
+    ]
+})
 
-df = pd.DataFrame(data)
+# 2. Calculs par zone
+df["Ecart (Juillet - Aout)"] = (
+    df["Consommation Juillet"] - df["Consommation Aout"]
+)
 
-# 2. Totaux calculés automatiquement
-total_juillet = df["Juillet"].sum()
-total_aout = df["Aout"].sum()
+df["Variation (%)"] = (
+    (df["Consommation Aout"] - df["Consommation Juillet"])
+    / df["Consommation Juillet"].replace(0, float("nan")) * 100
+).round(2)
 
-# Compteurs généraux indiqués sur le tableau
-compteur_juillet = 2000
-compteur_aout = 2000
-
-print("===== VERIFICATION DES TOTAUX =====")
-print("Total réel juillet :", total_juillet)
-print("Total inscrit juillet : 2000")
-print("Écart juillet :", compteur_juillet - total_juillet)
-
-print("\nTotal réel août :", total_aout)
-print("Total inscrit août : 1900")
-print("Écart avec le total inscrit :", total_aout - 1900)
-print("Écart avec le compteur général :", compteur_aout - total_aout)
-
-# 3. Détection des anomalies par zone
-df["Ecart"] = df["Juillet"] - df["Aout"]
-
-def detecter_anomalie(row):
-    if row["Aout"] == 0 and row["Juillet"] > 0:
-        return "ALERTE : consommation nulle"
-    elif row["Aout"] > row["Juillet"]:
-        return "Hausse à vérifier"
-    elif row["Aout"] < row["Juillet"]:
+def diagnostic(row):
+    if row["Consommation Juillet"] > 0 and row["Consommation Aout"] == 0:
+        return "ALERTE : à vérifier"
+    elif row["Consommation Aout"] < row["Consommation Juillet"]:
         return "Baisse à vérifier"
-    else:
-        return "Aucune variation"
+    elif row["Consommation Aout"] > row["Consommation Juillet"]:
+        return "Hausse à vérifier"
+    return "Stable"
 
-df["Diagnostic"] = df.apply(detecter_anomalie, axis=1)
+df["Diagnostic"] = df.apply(diagnostic, axis=1)
 
-print("\n===== ANALYSE PAR ZONE =====")
-print(df.to_string(index=False))
+# 3. Ajouter la ligne Total
+total_juillet = df["Consommation Juillet"].sum()
+total_aout = df["Consommation Aout"].sum()
 
-# 4. Vérification du compteur général
-ecart_juillet = compteur_juillet - total_juillet
-ecart_aout = compteur_aout - total_aout
+total = pd.DataFrame([{
+    "Zone": "TOTAL DES ZONES",
+    "Consommation Juillet": total_juillet,
+    "Consommation Aout": total_aout,
+    "Ecart (Juillet - Aout)": total_juillet - total_aout,
+    "Variation (%)": round(
+        (total_aout - total_juillet) / total_juillet * 100, 2
+    ),
+    "Diagnostic": "Totaux recalculés"
+}])
 
-print("\n===== CONCLUSION =====")
+resultat = pd.concat([df, total], ignore_index=True)
 
-if ecart_juillet != 0:
-    print("ANOMALIE JUILLET : écart de",
-          abs(ecart_juillet), "unités.")
+# 4. Tableau de vérification des compteurs généraux
+compteurs = pd.DataFrame({
+    "Mois": ["Juillet", "Août"],
+    "Total des zones recalculé": [total_juillet, total_aout],
+    "Compteur général": [2000, 2000]
+})
 
-if ecart_aout != 0:
-    print("ANOMALIE AOUT : écart de",
-          abs(ecart_aout), "unités.")
-else:
-    print("AOUT : le total détaillé correspond au compteur général.")
+compteurs["Ecart compteur - zones"] = (
+    compteurs["Compteur général"]
+    - compteurs["Total des zones recalculé"]
+)
 
-print("\nAttention : une anomalie ne prouve pas une fraude.")
+compteurs["Statut"] = compteurs["Ecart compteur - zones"].apply(
+    lambda x: "Écart à vérifier" if x != 0 else "Conforme"
+)
+
+# 5. Affichage organisé
+print("TABLEAU 1 : ANALYSE DE CHAQUE ZONE")
+display(resultat.style
+    .format({
+        "Consommation Juillet": "{:.0f}",
+        "Consommation Aout": "{:.0f}",
+        "Ecart (Juillet - Aout)": "{:.0f}",
+        "Variation (%)": "{:.2f}%"
+    })
+    .background_gradient(subset=["Ecart (Juillet - Aout)"], cmap="RdYlGn")
+    .set_properties(**{"text-align": "center"})
+    .set_caption("Analyse mensuelle des consommations"))
+
+print("TABLEAU 2 : CONTROLE DES COMPTEURS GENERAUX")
+display(compteurs.style
+    .format({
+        "Total des zones recalculé": "{:.0f}",
+        "Compteur général": "{:.0f}",
+        "Ecart compteur - zones": "{:.0f}"
+    })
+    .set_properties(**{"text-align": "center"})
+    .set_caption("Vérification des écarts"))
+
+print("CONCLUSION")
+print(f"Total recalculé en juillet : {total_juillet}")
+print(f"Total recalculé en août : {total_aout}")
+print("Maison à vérifier en priorité : Maison 9 (consommation nulle en août).")
+print("Un écart ou une baisse ne prouve pas à lui seul une fraude.")
