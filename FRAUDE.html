@@ -1,0 +1,69 @@
+import pandas as pd
+
+# 1. Données du tableau
+data = {
+    "Zone": [
+        "Maison 1", "Maison 2", "Maison 3", "Maison 4",
+        "Maison 5", "Maison 6", "Maison 7", "Maison 8",
+        "Maison 9", "Maison 10",
+        "Office National de l'Artisanat"
+    ],
+    "Juillet": [150, 100, 100, 100, 150, 100, 100, 100, 100, 150, 950],
+    "Aout":    [150, 100, 100, 100, 150, 100, 100, 100,   0, 150, 950]
+}
+
+df = pd.DataFrame(data)
+
+# 2. Totaux calculés automatiquement
+total_juillet = df["Juillet"].sum()
+total_aout = df["Aout"].sum()
+
+# Compteurs généraux indiqués sur le tableau
+compteur_juillet = 2000
+compteur_aout = 2000
+
+print("===== VERIFICATION DES TOTAUX =====")
+print("Total réel juillet :", total_juillet)
+print("Total inscrit juillet : 2000")
+print("Écart juillet :", compteur_juillet - total_juillet)
+
+print("\nTotal réel août :", total_aout)
+print("Total inscrit août : 1900")
+print("Écart avec le total inscrit :", total_aout - 1900)
+print("Écart avec le compteur général :", compteur_aout - total_aout)
+
+# 3. Détection des anomalies par zone
+df["Ecart"] = df["Juillet"] - df["Aout"]
+
+def detecter_anomalie(row):
+    if row["Aout"] == 0 and row["Juillet"] > 0:
+        return "ALERTE : consommation nulle"
+    elif row["Aout"] > row["Juillet"]:
+        return "Hausse à vérifier"
+    elif row["Aout"] < row["Juillet"]:
+        return "Baisse à vérifier"
+    else:
+        return "Aucune variation"
+
+df["Diagnostic"] = df.apply(detecter_anomalie, axis=1)
+
+print("\n===== ANALYSE PAR ZONE =====")
+print(df.to_string(index=False))
+
+# 4. Vérification du compteur général
+ecart_juillet = compteur_juillet - total_juillet
+ecart_aout = compteur_aout - total_aout
+
+print("\n===== CONCLUSION =====")
+
+if ecart_juillet != 0:
+    print("ANOMALIE JUILLET : écart de",
+          abs(ecart_juillet), "unités.")
+
+if ecart_aout != 0:
+    print("ANOMALIE AOUT : écart de",
+          abs(ecart_aout), "unités.")
+else:
+    print("AOUT : le total détaillé correspond au compteur général.")
+
+print("\nAttention : une anomalie ne prouve pas une fraude.")
